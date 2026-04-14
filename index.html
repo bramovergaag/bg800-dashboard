@@ -806,24 +806,24 @@ function checkUrlImport(){
     }
   }
 
-  // Raw email text import (from Make.com): ?rawimport=base64TEXT
+  // Raw text import (from Make.com via WhatsApp link): ?rawimport=base64TEXT
+  // Auto-applies changes directly so ?auto=pdf generates updated PDF immediately
   const rawParam = params.get('rawimport');
   if(rawParam){
     try {
-      const emailText = atob(rawParam);
-      const changes = parseNaturalText(emailText);
+      const text = atob(rawParam);
+      const changes = parseNaturalText(text);
       if(changes.length > 0){
-        // Show confirmation modal with preview
-        document.getElementById('importText').value = emailText;
-        openImportModal();
-        previewImport();
-        showToast(`${changes.length} wijziging(en) herkend uit email — controleer en verwerk!`, 'success');
+        changes.forEach(c => applyChange(c));
+        saveData();
+        render();
+        showToast(`${changes.length} wijziging(en) verwerkt!`, 'success');
       } else {
-        showToast('Geen wijzigingen herkend in de email.', 'error');
+        showToast('Geen wijzigingen herkend.', 'error');
       }
-      window.history.replaceState({}, '', window.location.pathname);
+      window.history.replaceState({}, '', window.location.pathname + (params.get('auto') ? '?auto=pdf' : ''));
     } catch(e){
-      showToast('Kon email niet lezen.', 'error');
+      showToast('Kon importdata niet lezen.', 'error');
     }
   }
 }
