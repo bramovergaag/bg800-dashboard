@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BG800 – Barrierplanning Dashboard | Boskalis Infra</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --boskalis-navy: #16315B;
+      --boskalis-blue: #2563eb;
+      --boskalis-yellow: #fff719;
+      --boskalis-dark: #141414;
+      --boskalis-light: #f0f2f5;
+      --surface: #f4f5f7;
+      --card-bg: #FFFFFF;
+      --text: #141414;
+      --text-muted: #5c6370;
+      --text-white: #FFFFFF;
+      --border: #d8dce3;
+      --success: #16A34A;
+      --warning: #D97706;
+      --danger: #DC2626;
+      --radius: 0px;
+      --shadow: 0 1px 3px rgba(22,49,91,0.08);
+      --shadow-lg: 0 8px 32px rgba(22,49,91,0.14);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Jost', 'FuturaPT', 'Segoe UI', system-ui, sans-serif;
+      background: var(--surface);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 16px;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      background: var(--boskalis-navy);
+      padding: 0 40px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .logo-mark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-mark svg {
+      height: 28px;
+      width: auto;
+    }
+
+    .topbar-divider {
+      width: 1px;
+      height: 28px;
+      background: rgba(255,255,255,0.2);
+    }
+
+    .topbar-title {
+      color: white;
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: 0.01em;
+    }
+
+    .topbar-subtitle {
+      color: rgba(255,255,255,0.5);
+      font-size: 0.72rem;
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .topbar-badge {
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.85);
+      padding: 5px 14px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* ── Yellow accent bar (Boskalis) ── */
+    .accent-bar {
+      height: 4px;
+      background: var(--boskalis-yellow);
+    }
+
+    /* ── Main ── */
+    main {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px 32px 40px;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .page-header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--boskalis-navy);
+      letter-spacing: -0.01em;
+    }
+
+    .page-header p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ── KPI Cards ── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 900px) { .kpi-row { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 500px) { .kpi-row { grid-template-columns: 1fr; } }
+
+    .kpi-card {
+      background: var(--card-bg);
+      padding: 20px 24px;
+      box-shadow: var(--shadow);
+      border-left: 4px solid var(--boskalis-navy);
+      position: relative;
+    }
+
+    .kpi-card.danger  { border-left-color: var(--danger); }
+    .kpi-card.warning { border-left-color: var(--warning); }
+    .kpi-card.success { border-left-color: var(--success); }
+
+    .kpi-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .kpi-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--boskalis-navy);
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .kpi-sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ── Controls ── */
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 4px 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .toolbar-group label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .toolbar-group select {
+      padding: 5px 8px;
+      border: none;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--boskalis-navy);
+      background: transparent;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .toolbar-group select:focus { outline: none; }
+
+    .toolbar-spacer { flex: 1; }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      border: none;
+      font-size: 0.82rem;
+      cursor: pointer;
+      font-weight: 600;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary {
+      background: var(--boskalis-navy);
+      color: white;
+    }
+
+    .btn-primary:hover { background: var(--boskalis-blue); }
+
+    .btn-yellow {
+      background: var(--boskalis-yellow);
+      color: var(--boskalis-navy);
+      font-weight: 700;
+    }
+
+    .btn-yellow:hover { background: #e6df17; }
+
+    .btn-outline {
+      background: var(--card-bg);
+      color: var(--boskalis-navy);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    .btn-outline:hover { background: var(--boskalis-light); border-color: var(--boskalis-navy); }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-header h2 {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--boskalis-navy);
+    }
+
+    .card-body { padding: 20px; }
+
+    .chart-wrapper {
+      position: relative;
+      height: 380px;
+    }
+
+    /* ── Table ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    thead th {
+      background: var(--boskalis-light);
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--boskalis-navy);
+      text-transform: uppercase;
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      border-bottom: 2px solid var(--border);
+    }
+
+    tbody td {
+      padding: 9px 14px;
+      border-bottom: 1px solid #F1F4F8;
+      color: var(--text);
+    }
+
+    tbody tr:hover { background: #F8FAFC; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .badge-green  { background: #DCFCE7; color: var(--success); }
+    .badge-orange { background: #FFF3E0; color: var(--warning); }
+    .badge-red    { background: #FEE2E2; color: var(--danger); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(22,49,91,0.6);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(3px);
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--card-bg);
+      width: 520px;
+      max-width: 95vw;
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      background: var(--boskalis-navy);
+      padding: 20px 24px;
+      color: white;
+    }
+
+    .modal-header h3 {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .modal-header p {
+      font-size: 0.78rem;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+
+    .modal-body { padding: 24px; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .form-group.full { grid-column: 1 / -1; }
+
+    .form-group label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 9px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.88rem;
+      color: var(--text);
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: var(--boskalis-navy);
+      box-shadow: 0 0 0 3px rgba(22,49,91,0.1);
+    }
+
+    .form-group textarea { resize: vertical; min-height: 80px; }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 0 24px 20px;
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text-muted);
+    }
+
+    .btn-secondary:hover { background: var(--border); }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--boskalis-navy);
+      color: white;
+      padding: 12px 20px;
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success { border-left: 4px solid var(--success); }
+    .toast.error   { border-left: 4px solid var(--danger); }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 20px 32px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      background: var(--card-bg);
+    }
+
+    footer strong { color: var(--boskalis-navy); }
+
+    /* ── Sync indicator ── */
+    .sync-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .sync-dot.online  { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
+    .sync-dot.offline { background: #ef4444; }
+    .sync-dot.local   { background: #f59e0b; }
+    .sync-dot.syncing {
+      background: #60a5fa;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-mark">
+      <svg viewBox="0 0 120 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <text x="0" y="22" fill="white" font-family="Jost, sans-serif" font-size="24" font-weight="700" letter-spacing="1">BOSKALIS</text>
+      </svg>
+    </div>
+    <div class="topbar-divider"></div>
+    <div>
+      <div class="topbar-title">Infra</div>
+      <div class="topbar-subtitle">Creating new horizons</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-badge">BG800 BARRIERS</span>
+    <span class="topbar-badge" style="display:flex;align-items:center;gap:6px">
+      <span class="sync-dot" id="syncDot"></span>
+      <span id="dataStatus">Verbinden...</span>
+    </span>
+  </div>
+</div>
+<div class="accent-bar"></div>
+
+<main>
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div>
+      <h1>Barrierplanning Dashboard</h1>
+      <p>Overzicht van beschikbaarheid &amp; inzet 2025 – 2026</p>
+    </div>
+    <div style="text-align:right; font-size:0.75rem; color:var(--text-muted)">
+      Laatst bijgewerkt<br/>
+      <strong id="updateTime" style="color:var(--boskalis-navy)"></strong>
+    </div>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-group">
+      <label>Jaar</label>
+      <select id="filterYear" onchange="render()">
+        <option value="all">Alle</option>
+        <option value="2025">2025</option>
+        <option value="2026">2026</option>
+      </select>
+    </div>
+    <div class="toolbar-group">
+      <label>Project</label>
+      <select id="filterProject" onchange="render()">
+        <option value="all">Alle</option>
+      </select>
+    </div>
+    <div class="toolbar-spacer"></div>
+    <button class="btn btn-outline" onclick="syncFromWebhook()" title="Handmatig synchroniseren met Make.com">&#8635; Sync</button>
+    <button class="btn btn-outline" onclick="openImportModal()">&#8595; Import</button>
+    <button class="btn btn-outline" onclick="exportData()">&#8593; Export</button>
+    <button class="btn btn-primary" onclick="openModal()">+ Wijziging</button>
+    <button class="btn btn-yellow" onclick="generatePDF()">&#128196; Genereer PDF</button>
+  </div>
+
+  <!-- Chart -->
+  <div class="card">
+    <div class="card-header">
+      <h2>Inzet per project vs. beschikbare barriers</h2>
+      <span style="font-size:0.75rem;color:var(--text-muted)">Capaciteit: <strong style="color:var(--danger)">311 barriers</strong></span>
+    </div>
+    <div class="card-body">
+      <div class="chart-wrapper">
+        <canvas id="planningChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="card-header">
+      <h2>Weekdetails</h2>
+      <span style="font-size:0.72rem;color:var(--text-muted)" id="rowCount"></span>
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Jaar</th>
+            <th>Week</th>
+            <th>Project</th>
+            <th style="text-align:right">Barriers</th>
+            <th style="text-align:right">Totaal</th>
+            <th style="text-align:right">Beschikbaar</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <strong>Boskalis</strong> &middot; BG800 Barrierplanning Dashboard &middot; &copy; 2025 &middot; Creating new horizons
+</footer>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Wijziging doorgeven</h3>
+      <p>Voer een projectwijziging in om het dashboard bij te werken</p>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Projectnaam</label>
+          <input type="text" id="fProject" placeholder="bijv. Test N290"/>
+        </div>
+        <div class="form-group">
+          <label>Startjaar</label>
+          <select id="fStartYear"><option>2025</option><option>2026</option></select>
+        </div>
+        <div class="form-group">
+          <label>Startweek</label>
+          <input type="number" id="fStartWeek" min="1" max="52" placeholder="1-52"/>
+        </div>
+        <div class="form-group">
+          <label>Eindjaar</label>
+          <select id="fEndYear"><option>2025</option><option>2026</option></select>
+        </div>
+        <div class="form-group">
+          <label>Eindweek</label>
+          <input type="number" id="fEndWeek" min="1" max="52" placeholder="1-52"/>
+        </div>
+        <div class="form-group full">
+          <label>Aantal barriers per week</label>
+          <input type="number" id="fBarriers" min="0" max="311" placeholder="bijv. 90"/>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Annuleren</button>
+      <button class="btn btn-primary" onclick="submitChange()">Verwerken</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="importOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Wijziging importeren</h3>
+      <p>Plak een email of beschrijf de wijziging in je eigen woorden</p>
+    </div>
+    <div class="modal-body">
+      <div class="form-group full">
+        <label>Beschrijving van de wijziging</label>
+        <textarea id="importText" rows="5" placeholder="Bijv: Grebbedijk verlagen naar 50 barriers van week 10 tot 30 in 2025. En Nieuwe Waterweg moet 120 barriers van week 1 tot 25 in 2026."></textarea>
+      </div>
+      <div id="aiPreview" style="display:none; margin-top:12px;">
+        <label style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:8px;">Herkende wijzigingen</label>
+        <div id="aiPreviewContent" style="background:var(--boskalis-light);padding:12px 16px;font-size:0.85rem;line-height:1.6;"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeImportModal()">Annuleren</button>
+      <button class="btn btn-outline" onclick="previewImport()">Controleer</button>
+      <button class="btn btn-primary" onclick="importFromText()">Verwerken</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const TOTAL_AVAILABLE = 311;
+const STORAGE_KEY = 'bg800_plandata';
+const WEBHOOK_URL = 'https://hook.eu1.make.com/vm8rpl1apx62oy796l8n4yabeztuxy8c';
+const SYNC_INTERVAL = 300000; // Check elke 5 minuten
+
+// ─── Default data ───
+const DEFAULT_DATA = [
+  ...wRange(2025,1,2025,20).map(r=>({...r, project:'Thorbeckeweg N516', barriers:90})),
+  ...wRange(2025,5,2025,30).map(r=>({...r, project:'Test N290', barriers:50})),
+  ...wRange(2025,15,2025,40).map(r=>({...r, project:'Grebbedijk', barriers:70})),
+  ...wRange(2026,1,2026,25).map(r=>({...r, project:'Nieuwe Waterweg', barriers:120})),
+  ...wRange(2026,5,2026,18).map(r=>({...r, project:'Thorbeckeweg N516', barriers:80})),
+];
+
+let planData = loadData();
+let syncTimer = null;
+let lastSyncTime = null;
+
+// ─── Persistence ───
+function loadData(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) return JSON.parse(raw);
+  } catch(e){}
+  return [...DEFAULT_DATA];
+}
+
+function saveData(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(planData));
+  updateSyncStatus('local');
+}
+
+// ─── Sync Status UI ───
+function updateSyncStatus(state, detail=''){
+  const el = document.getElementById('dataStatus');
+  const dot = document.getElementById('syncDot');
+  switch(state){
+    case 'syncing':
+      el.textContent = 'Synchroniseren...';
+      if(dot) dot.className = 'sync-dot syncing';
+      break;
+    case 'synced':
+      lastSyncTime = new Date();
+      el.textContent = 'Gesynchroniseerd ' + lastSyncTime.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+      if(dot) dot.className = 'sync-dot online';
+      break;
+    case 'error':
+      el.textContent = 'Offline modus';
+      if(dot) dot.className = 'sync-dot offline';
+      break;
+    case 'local':
+      el.textContent = 'Lokaal opgeslagen';
+      if(dot) dot.className = 'sync-dot local';
+      break;
+    case 'new-data':
+      el.textContent = detail || 'Nieuwe data ontvangen!';
+      if(dot) dot.className = 'sync-dot online';
+      break;
+  }
+}
+
+// ─── Make.com Webhook Sync ───
+async function syncFromWebhook(){
+  updateSyncStatus('syncing');
+  try {
+    const resp = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'getData', timestamp: new Date().toISOString() })
+    });
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const text = await resp.text();
+    if(!text || text === 'Accepted') {
+      updateSyncStatus('synced');
+      return;
+    }
+    const result = JSON.parse(text);
+
+    // Make.com returns data store records
+    if(Array.isArray(result) && result.length > 0){
+      let newChanges = 0;
+      result.forEach(record => {
+        // Each record has: project, barriers, startYear, startWeek, endYear, endWeek
+        const change = record.data || record;
+        if(change.project && change.barriers){
+          applyChange({
+            project: change.project,
+            barriers: parseInt(change.barriers),
+            startYear: parseInt(change.startYear),
+            startWeek: parseInt(change.startWeek),
+            endYear: parseInt(change.endYear),
+            endWeek: parseInt(change.endWeek),
+          });
+          newChanges++;
+        }
+      });
+      if(newChanges > 0){
+        saveData();
+        render();
+        updateSyncStatus('new-data', `${newChanges} wijziging(en) ontvangen!`);
+        showToast(`${newChanges} nieuwe wijziging(en) via email ontvangen!`);
+      } else {
+        updateSyncStatus('synced');
+      }
+    } else {
+      updateSyncStatus('synced');
+    }
+  } catch(e){
+    console.log('Sync error:', e.message);
+    updateSyncStatus('error');
+    // Back off on errors: stop auto-sync to prevent hammering
+    if(syncTimer){ clearInterval(syncTimer); syncTimer = null; }
+  }
+}
+
+// Push changes to Make.com (for central storage)
+async function pushToWebhook(changeData){
+  try {
+    await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        action: 'addData',
+        changes: Array.isArray(changeData) ? changeData : [changeData],
+        timestamp: new Date().toISOString()
+      })
+    });
+  } catch(e){
+    console.log('Push error:', e.message);
+  }
+}
+
+// Start auto-sync (only if webhook is available)
+function startAutoSync(){
+  // Only sync once on load, no continuous polling
+  syncFromWebhook();
+}
+
+// ─── URL import on page load ───
+function checkUrlImport(){
+  const params = new URLSearchParams(window.location.search);
+
+  // Structured JSON import: ?import=base64JSON
+  const importParam = params.get('import');
+  if(importParam){
+    try {
+      const decoded = JSON.parse(atob(importParam));
+      if(Array.isArray(decoded) && decoded.length > 0){
+        decoded.forEach(change => applyChange(change));
+        saveData();
+        render();
+        showToast('Wijzigingen uit link geimporteerd!', 'success');
+        window.history.replaceState({}, '', window.location.pathname);
+        return;
+      }
+    } catch(e){
+      showToast('Ongeldige importdata in URL', 'error');
+    }
+  }
+
+  // Raw email text import (from Make.com): ?rawimport=base64TEXT
+  const rawParam = params.get('rawimport');
+  if(rawParam){
+    try {
+      const emailText = atob(rawParam);
+      const changes = parseNaturalText(emailText);
+      if(changes.length > 0){
+        // Show confirmation modal with preview
+        document.getElementById('importText').value = emailText;
+        openImportModal();
+        previewImport();
+        showToast(`${changes.length} wijziging(en) herkend uit email — controleer en verwerk!`, 'success');
+      } else {
+        showToast('Geen wijzigingen herkend in de email.', 'error');
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    } catch(e){
+      showToast('Kon email niet lezen.', 'error');
+    }
+  }
+}
+
+// ─── Helpers ───
+function wRange(sy,sw,ey,ew){
+  const result=[];
+  let y=sy, w=sw;
+  while(y<ey||(y===ey&&w<=ew)){
+    result.push({year:y, week:w});
+    w++; if(w>52){w=1;y++;}
+  }
+  return result;
+}
+
+function aggregate(data){
+  const map={};
+  data.forEach(d=>{
+    const key=`${d.year}-W${String(d.week).padStart(2,'0')}`;
+    if(!map[key]) map[key]={year:d.year, week:d.week, key, projects:{}};
+    map[key].projects[d.project]=(map[key].projects[d.project]||0)+d.barriers;
+  });
+  return Object.values(map).sort((a,b)=>a.year!==b.year?a.year-b.year:a.week-b.week);
+}
+
+function getProjects(data){ return [...new Set(data.map(d=>d.project))].sort(); }
+
+function getFilteredData(){
+  const yr=document.getElementById('filterYear').value;
+  const pr=document.getElementById('filterProject').value;
+  return planData.filter(d=>(yr==='all'||d.year==yr)&&(pr==='all'||d.project===pr));
+}
+
+function applyChange(c){
+  planData = planData.filter(d=>{
+    if(d.project!==c.project) return true;
+    const ys=c.startYear, ws=c.startWeek, ye=c.endYear, we=c.endWeek;
+    const after  = d.year>ys||(d.year===ys&&d.week>=ws);
+    const before = d.year<ye||(d.year===ye&&d.week<=we);
+    return !(after&&before);
+  });
+  wRange(c.startYear,c.startWeek,c.endYear,c.endWeek).forEach(r=>{
+    planData.push({...r, project:c.project, barriers:c.barriers});
+  });
+}
+
+// ─── Toast ───
+function showToast(msg, type='success'){
+  const el = document.getElementById('toast');
+  el.className = 'toast ' + type;
+  el.innerHTML = (type==='success'?'&#10003; ':'&#9888; ') + msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 3500);
+}
+
+// ─── Chart ───
+const COLORS = ['#16315B','#2563eb','#22c55e','#D97706','#8b5cf6','#06b6d4','#ec4899','#DC2626'];
+let chartInstance = null;
+
+function renderChart(agg, projects){
+  const labels = agg.map(w=>{
+    const wk = String(w.week).padStart(2,'0');
+    return w.week===1||agg.indexOf(agg.find(a=>a.year===w.year&&a.week===w.week))===0
+      ? `${w.year} W${wk}`
+      : `W${wk}`;
+  });
+
+  const datasets = projects.map((p,i)=>({
+    type:'bar',
+    label:p,
+    data:agg.map(w=>w.projects[p]||0),
+    backgroundColor: COLORS[i%COLORS.length] + 'DD',
+    hoverBackgroundColor: COLORS[i%COLORS.length],
+    stack:'inzet',
+    borderRadius: 2,
+  }));
+
+  datasets.push({
+    type:'line',
+    label:`Capaciteit (${TOTAL_AVAILABLE})`,
+    data: agg.map(()=>TOTAL_AVAILABLE),
+    borderColor: '#DC2626',
+    borderWidth: 2,
+    borderDash:[8,4],
+    pointRadius:0,
+    fill:false,
+    order:0,
+  });
+
+  if(chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(document.getElementById('planningChart'),{
+    data:{labels, datasets},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{ intersect:false, mode:'index' },
+      plugins:{
+        legend:{ position:'bottom', labels:{ boxWidth:10, padding:16, font:{size:11, family:'Jost'}, usePointStyle:true } },
+        tooltip:{
+          backgroundColor:'rgba(22,49,91,0.95)',
+          titleFont:{weight:'600'},
+          padding:12,
+          cornerRadius:6,
+          callbacks:{
+            footer(items){
+              const sum=items.filter(i=>i.dataset.type==='bar').reduce((s,i)=>s+i.parsed.y,0);
+              const avail=TOTAL_AVAILABLE-sum;
+              return `\nTotaal: ${sum} / ${TOTAL_AVAILABLE}\n${avail<0?'TEKORT: '+Math.abs(avail)+' barriers':'Beschikbaar: '+avail}`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ stacked:true, grid:{display:false}, ticks:{maxRotation:45, font:{size:9, family:'Jost'}} },
+        y:{ stacked:true, min:0, beginAtZero:true, title:{display:true, text:'Barriers', font:{size:11}},
+            grid:{color:'#F1F4F8'} }
+      }
+    }
+  });
+}
+
+// ─── KPIs ───
+function renderKPI(agg){
+  const totals = agg.map(w=>Object.values(w.projects).reduce((s,v)=>s+v,0));
+  const maxInzet = Math.max(...totals,0);
+  const wTekort  = totals.filter(t=>t>TOTAL_AVAILABLE).length;
+  const wVrij    = totals.filter(t=>t<=TOTAL_AVAILABLE).length;
+  const wPiek    = totals.filter(t=>t>TOTAL_AVAILABLE*0.8).length;
+  const nProjects = getProjects(planData).length;
+
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi-card ${maxInzet>TOTAL_AVAILABLE?'danger':'success'}">
+      <div class="kpi-label">Maximale inzet</div>
+      <div class="kpi-value">${maxInzet}</div>
+      <div class="kpi-sub">van ${TOTAL_AVAILABLE} beschikbaar</div>
+    </div>
+    <div class="kpi-card ${wTekort>0?'danger':'success'}">
+      <div class="kpi-label">Weken tekort</div>
+      <div class="kpi-value">${wTekort}</div>
+      <div class="kpi-sub">inzet overschrijdt capaciteit</div>
+    </div>
+    <div class="kpi-card warning">
+      <div class="kpi-label">Weken piekbelasting</div>
+      <div class="kpi-value">${wPiek}</div>
+      <div class="kpi-sub">&gt; 80% bezetting (${Math.round(TOTAL_AVAILABLE*0.8)}+)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Actieve projecten</div>
+      <div class="kpi-value">${nProjects}</div>
+      <div class="kpi-sub">${wVrij} weken voldoende ruimte</div>
+    </div>
+  `;
+}
+
+// ─── Table ───
+function renderTable(agg){
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML='';
+  let rowCount = 0;
+
+  agg.forEach(w=>{
+    const tot = Object.values(w.projects).reduce((s,v)=>s+v,0);
+    const avail = TOTAL_AVAILABLE - tot;
+    const badge = avail<0
+      ? `<span class="badge badge-red">Tekort ${avail}</span>`
+      : avail < 50
+        ? `<span class="badge badge-orange">Krap +${avail}</span>`
+        : `<span class="badge badge-green">OK +${avail}</span>`;
+
+    const entries = Object.entries(w.projects);
+    entries.forEach(([proj,bars],i)=>{
+      const tr=document.createElement('tr');
+      if(avail<0) tr.style.background='#FEF2F2';
+      tr.innerHTML=`
+        <td>${i===0?w.year:''}</td>
+        <td>${i===0?'W'+String(w.week).padStart(2,'0'):''}</td>
+        <td><strong>${proj}</strong></td>
+        <td style="text-align:right;font-variant-numeric:tabular-nums">${bars}</td>
+        <td style="text-align:right;font-weight:600">${i===0?tot:''}</td>
+        <td style="text-align:right">${i===0?(avail<0?avail:'+'+avail):''}</td>
+        <td>${i===0?badge:''}</td>
+      `;
+      tbody.appendChild(tr);
+      rowCount++;
+    });
+  });
+
+  document.getElementById('rowCount').textContent = `${agg.length} weken, ${rowCount} regels`;
+}
+
+// ─── Render ───
+function render(){
+  const data = getFilteredData();
+  const agg  = aggregate(data);
+  const projects = getProjects(data);
+
+  const pfil = document.getElementById('filterProject');
+  const curPr = pfil.value;
+  pfil.innerHTML = '<option value="all">Alle</option>';
+  getProjects(planData).forEach(p=>{
+    const o=document.createElement('option');
+    o.value=p; o.textContent=p;
+    if(p===curPr) o.selected=true;
+    pfil.appendChild(o);
+  });
+
+  renderKPI(agg);
+  renderChart(agg, projects);
+  renderTable(agg);
+}
+
+// ─── Modals ───
+function openModal(){ document.getElementById('modalOverlay').classList.add('open'); }
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
+function openImportModal(){ document.getElementById('importOverlay').classList.add('open'); }
+function closeImportModal(){ document.getElementById('importOverlay').classList.remove('open'); }
+
+function submitChange(){
+  const project  = document.getElementById('fProject').value.trim();
+  const sy       = parseInt(document.getElementById('fStartYear').value);
+  const sw       = parseInt(document.getElementById('fStartWeek').value);
+  const ey       = parseInt(document.getElementById('fEndYear').value);
+  const ew       = parseInt(document.getElementById('fEndWeek').value);
+  const barriers = parseInt(document.getElementById('fBarriers').value);
+
+  if(!project||!sw||!ew||isNaN(barriers)){
+    showToast('Vul alle velden in.', 'error');
+    return;
+  }
+
+  const change = { project, startYear:sy, startWeek:sw, endYear:ey, endWeek:ew, barriers };
+  applyChange(change);
+  saveData();
+  pushToWebhook(change); // Sync naar Make.com
+  closeModal();
+  render();
+  showToast(`${project} bijgewerkt (W${sw}-${sy} t/m W${ew}-${ey})`);
+}
+
+// ─── PDF Generatie ───
+async function generatePDF(){
+  showToast('PDF wordt gegenereerd...');
+  try {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 15;
+    const contentW = pageW - margin * 2;
+    let y = margin;
+
+    // ── Header ──
+    pdf.setFillColor(22, 49, 91); // boskalis-navy
+    pdf.rect(0, 0, pageW, 22, 'F');
+    pdf.setFillColor(255, 247, 25); // boskalis-yellow
+    pdf.rect(0, 22, pageW, 2, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(16);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('BOSKALIS', margin, 14);
+    pdf.setFontSize(10);
+    pdf.setFont(undefined, 'normal');
+    pdf.text('Infra  |  BG800 Barrierplanning', margin + 42, 14);
+    const dateStr = new Date().toLocaleDateString('nl-NL', {day:'numeric', month:'long', year:'numeric'});
+    pdf.setFontSize(9);
+    pdf.text(dateStr, pageW - margin, 14, {align:'right'});
+
+    y = 30;
+
+    // ── KPI samenvatting ──
+    const data = getFilteredData();
+    const agg = aggregate(data);
+    const projects = getProjects(data);
+    const totals = agg.map(w => Object.values(w.projects).reduce((s,v) => s+v, 0));
+    const maxInzet = Math.max(...totals, 0);
+    const wTekort = totals.filter(t => t > TOTAL_AVAILABLE).length;
+    const wVrij = totals.filter(t => t <= TOTAL_AVAILABLE).length;
+
+    pdf.setTextColor(22, 49, 91);
+    pdf.setFontSize(11);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('Samenvatting', margin, y);
+    y += 6;
+
+    pdf.setFontSize(9);
+    pdf.setFont(undefined, 'normal');
+    pdf.setTextColor(60, 60, 60);
+    const kpis = [
+      `Maximale inzet: ${maxInzet} / ${TOTAL_AVAILABLE} barriers`,
+      `Weken met tekort: ${wTekort}`,
+      `Weken beschikbaar: ${wVrij}`,
+      `Actieve projecten: ${projects.length}`,
+    ];
+    kpis.forEach(kpi => { pdf.text(kpi, margin, y); y += 5; });
+    y += 4;
+
+    // ── Grafiek als afbeelding ──
+    const chartCanvas = document.getElementById('planningChart');
+    if(chartCanvas){
+      const chartImg = chartCanvas.toDataURL('image/png', 1.0);
+      const chartH = 70;
+      pdf.addImage(chartImg, 'PNG', margin, y, contentW, chartH);
+      y += chartH + 6;
+    }
+
+    // ── Projectoverzicht tabel ──
+    pdf.setTextColor(22, 49, 91);
+    pdf.setFontSize(11);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('Projectoverzicht', margin, y);
+    y += 6;
+
+    // Table header
+    const colWidths = [contentW * 0.30, contentW * 0.18, contentW * 0.18, contentW * 0.18, contentW * 0.16];
+    const headers = ['Project', 'Barriers/week', 'Startweek', 'Eindweek', 'Status'];
+
+    pdf.setFillColor(240, 242, 245);
+    pdf.rect(margin, y - 4, contentW, 7, 'F');
+    pdf.setFontSize(8);
+    pdf.setFont(undefined, 'bold');
+    pdf.setTextColor(22, 49, 91);
+    let xPos = margin;
+    headers.forEach((h, i) => { pdf.text(h, xPos + 2, y); xPos += colWidths[i]; });
+    y += 6;
+
+    // Table rows — one row per project summary
+    pdf.setFont(undefined, 'normal');
+    pdf.setTextColor(40, 40, 40);
+    pdf.setFontSize(8);
+
+    projects.forEach(p => {
+      if(y > pageH - 20) { pdf.addPage(); y = margin; }
+      const rows = planData.filter(d => d.project === p);
+      if(!rows.length) return;
+      const bars = rows[0].barriers;
+      const minW = rows.reduce((m,r) => (r.year < m.year || (r.year === m.year && r.week < m.week)) ? r : m);
+      const maxW = rows.reduce((m,r) => (r.year > m.year || (r.year === m.year && r.week > m.week)) ? r : m);
+      const startStr = `W${String(minW.week).padStart(2,'0')}-${minW.year}`;
+      const endStr = `W${String(maxW.week).padStart(2,'0')}-${maxW.year}`;
+      const status = bars > 0 ? 'Actief' : 'Gestopt';
+
+      xPos = margin;
+      [p, String(bars), startStr, endStr, status].forEach((val, i) => {
+        pdf.text(val, xPos + 2, y);
+        xPos += colWidths[i];
+      });
+
+      // Light row border
+      pdf.setDrawColor(220, 220, 220);
+      pdf.line(margin, y + 2, margin + contentW, y + 2);
+      y += 6;
+    });
+
+    // ── Tekort weken ──
+    if(wTekort > 0){
+      y += 4;
+      if(y > pageH - 20) { pdf.addPage(); y = margin; }
+      pdf.setTextColor(220, 38, 38);
+      pdf.setFontSize(9);
+      pdf.setFont(undefined, 'bold');
+      const tekortWeken = agg
+        .filter(w => Object.values(w.projects).reduce((s,v) => s+v, 0) > TOTAL_AVAILABLE)
+        .map(w => `W${String(w.week).padStart(2,'0')}-${w.year}`)
+        .join(', ');
+      pdf.text(`LET OP — Tekort in weken: ${tekortWeken}`, margin, y);
+    }
+
+    // ── Footer ──
+    const totalPages = pdf.internal.getNumberOfPages();
+    for(let i = 1; i <= totalPages; i++){
+      pdf.setPage(i);
+      pdf.setFontSize(7);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text(`Boskalis Infra — BG800 Barrierplanning — ${dateStr} — Pagina ${i}/${totalPages}`, pageW / 2, pageH - 8, {align:'center'});
+    }
+
+    // Save
+    const filename = `BG800_Barrierplanning_${new Date().toISOString().slice(0,10)}.pdf`;
+    pdf.save(filename);
+    showToast(`PDF opgeslagen: ${filename}`);
+  } catch(e){
+    console.error('PDF error:', e);
+    showToast('Fout bij genereren PDF: ' + e.message, 'error');
+  }
+}
+
+// ─── Smart NL Text Parser (AI-style) ───
+// Herkent vrije Nederlandse tekst en extraheert planningswijzigingen
+
+const KNOWN_PROJECTS = () => getProjects(planData);
+const MONTH_MAP = {
+  'januari':1,'februari':5,'maart':9,'april':14,'mei':18,'juni':22,
+  'july':27,'juli':27,'augustus':31,'september':36,'oktober':40,'november':44,'december':49,
+  'jan':1,'feb':5,'mrt':9,'apr':14,'jun':22,'jul':27,'aug':31,'sep':36,'okt':40,'nov':44,'dec':49
+};
+
+function parseNaturalText(text){
+  const changes = [];
+  // Normalize text
+  const normalized = text
+    .replace(/\r\n/g, '\n')
+    .replace(/["\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/[.!?]\s+(?=[A-Z])/g, '.\n')  // split on sentence endings followed by capital
+    .replace(/,\s*en\s+/gi, '.\n')          // split "X, en Y"
+    .replace(/;\s*/g, '.\n');                // split on semicolons
+
+  // Split into sentences/chunks
+  const sentences = normalized.split('\n')
+    .map(s => s.trim())
+    .filter(s => s.length > 5);
+
+  for(const sentence of sentences){
+    const change = parseSentence(sentence);
+    if(change) changes.push(change);
+  }
+  return changes;
+}
+
+function parseSentence(s){
+  const lower = s.toLowerCase();
+
+  // ── Extract project name ──
+  let project = null;
+
+  // Try matching known projects first
+  for(const p of KNOWN_PROJECTS()){
+    if(lower.includes(p.toLowerCase())){
+      project = p;
+      break;
+    }
+  }
+
+  // Try to find a capitalized project name or quoted name
+  if(!project){
+    const quoted = s.match(/["']([^"']+)["']/);
+    if(quoted) project = quoted[1];
+  }
+  if(!project){
+    // Look for capitalized words that look like project names (2+ caps words or word+number)
+    const capMatch = s.match(/\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z0-9]*)+)\b/);
+    if(capMatch) project = capMatch[1];
+  }
+  if(!project){
+    // Word followed by a road number like "N290", "N516", "A15"
+    const roadMatch = s.match(/(\w+\s+[NAna]\d{1,4})/i);
+    if(roadMatch) project = roadMatch[1];
+  }
+  if(!project){
+    // Look for "project X" pattern
+    const projMatch = lower.match(/project\s+["']?([a-z0-9\s]+?)["']?\s*(?:moet|naar|op|van|verlag|verhog|stop|start|\d)/i);
+    if(projMatch) project = projMatch[1].trim();
+  }
+
+  if(!project) return null;
+
+  // Clean project name
+  project = project.replace(/^(project|de|het)\s+/i, '').trim();
+  project = project.charAt(0).toUpperCase() + project.slice(1);
+
+  // ── Extract number of barriers ──
+  let barriers = null;
+  const barrierPatterns = [
+    /(\d+)\s*barriers?/i,
+    /naar\s+(\d+)/i,
+    /op\s+(\d+)\s/i,
+    /(\d+)\s*(?:stuks?|st\.)/i,
+    /verlagen\s+(?:naar|tot)\s+(\d+)/i,
+    /verhogen\s+(?:naar|tot)\s+(\d+)/i,
+    /zet(?:ten)?\s+(?:op|naar)\s+(\d+)/i,
+    /wordt?\s+(\d+)/i,
+    /(\d+)\s+(?:per week|\/week|p\.?w\.?)/i,
+  ];
+  for(const pat of barrierPatterns){
+    const m = lower.match(pat);
+    if(m){ barriers = parseInt(m[1]); break; }
+  }
+
+  // If "stopzetten" or "stoppen" or "verwijderen" → barriers = 0
+  if(barriers === null && /stop|verwijder|schrap|annuleer|cancel/i.test(lower)){
+    barriers = 0;
+  }
+
+  if(barriers === null) return null;
+
+  // ── Extract weeks ──
+  let startWeek=null, endWeek=null, startYear=null, endYear=null;
+  const currentYear = new Date().getFullYear();
+
+  // Pattern: "week 10 tot 30" / "w10-w30" / "wk10 t/m wk30"
+  const weekRange = lower.match(/w(?:ee)?k?\s*(\d{1,2})\s*(?:tot|t\/m|tm|-|–)\s*(?:w(?:ee)?k?\s*)?(\d{1,2})/i);
+  if(weekRange){
+    startWeek = parseInt(weekRange[1]);
+    endWeek = parseInt(weekRange[2]);
+  }
+
+  // Pattern: "W10-2025 t/m W30-2025" (structured)
+  const structRange = lower.match(/w(\d{1,2})\s*[-.]?\s*(\d{4})\s*(?:tot|t\/m|tm|-|–)\s*w(\d{1,2})\s*[-.]?\s*(\d{4})/i);
+  if(structRange){
+    startWeek = parseInt(structRange[1]);
+    startYear = parseInt(structRange[2]);
+    endWeek = parseInt(structRange[3]);
+    endYear = parseInt(structRange[4]);
+  }
+
+  // Pattern: "van januari tot juni" (months)
+  if(!startWeek){
+    for(const [mName, wk] of Object.entries(MONTH_MAP)){
+      const monthRange = lower.match(new RegExp(`(?:van|vanaf|start)\\s+${mName}\\s+(?:tot|t\\/m|tm|-|–)\\s+(\\w+)`,'i'));
+      if(monthRange){
+        startWeek = wk;
+        const endMonth = MONTH_MAP[monthRange[1].toLowerCase()];
+        if(endMonth) endWeek = Math.min(endMonth + 3, 52);
+        break;
+      }
+    }
+  }
+
+  // Pattern: "vanaf week 10" (start only)
+  if(!startWeek){
+    const fromWeek = lower.match(/(?:vanaf|start|begin)\s+w(?:ee)?k?\s*(\d{1,2})/i);
+    if(fromWeek){
+      startWeek = parseInt(fromWeek[1]);
+      if(!endWeek) endWeek = 52; // default to end of year
+    }
+  }
+
+  // Pattern: "tot week 30" or "eind week 30" (end only)
+  if(!endWeek){
+    const toWeek = lower.match(/(?:tot|t\/m|eind|eindig)\s+w(?:ee)?k?\s*(\d{1,2})/i);
+    if(toWeek){
+      endWeek = parseInt(toWeek[1]);
+      if(!startWeek) startWeek = 1;
+    }
+  }
+
+  // ── Extract year(s) ──
+  const years = [...lower.matchAll(/\b(202[4-9])\b/g)].map(m=>parseInt(m[1]));
+  if(!startYear && !endYear){
+    // If only one year mentioned, use it for both start and end
+    if(years.length === 1){
+      startYear = years[0];
+      endYear = years[0];
+    } else if(years.length >= 2){
+      startYear = years[0];
+      endYear = years[1];
+    } else {
+      startYear = currentYear;
+      endYear = currentYear;
+    }
+  } else {
+    if(!startYear) startYear = endYear || years[0] || currentYear;
+    if(!endYear) endYear = startYear;
+  }
+
+  // Fallback: if we have no weeks at all, try to infer from existing data
+  if(!startWeek || !endWeek){
+    const existing = planData.filter(d=>d.project.toLowerCase()===project.toLowerCase());
+    if(existing.length > 0){
+      if(!startWeek) startWeek = Math.min(...existing.map(d=>d.week));
+      if(!endWeek) endWeek = Math.max(...existing.map(d=>d.week));
+      if(!startYear) startYear = existing[0].year;
+      if(!endYear) endYear = existing[existing.length-1].year;
+    }
+  }
+
+  if(!startWeek || !endWeek) return null;
+
+  return { project, barriers, startWeek, startYear, endWeek, endYear };
+}
+
+// Format a parsed change for display
+function formatChange(c){
+  return `<strong>${c.project}</strong>: ${c.barriers} barriers, W${c.startWeek}-${c.startYear} t/m W${c.endWeek}-${c.endYear}`;
+}
+
+// ── Preview parsed changes ──
+function previewImport(){
+  const raw = document.getElementById('importText').value.trim();
+  if(!raw){ showToast('Typ eerst een beschrijving.', 'error'); return; }
+
+  const changes = parseNaturalText(raw);
+  const preview = document.getElementById('aiPreview');
+  const content = document.getElementById('aiPreviewContent');
+
+  if(changes.length === 0){
+    content.innerHTML = '<span style="color:var(--danger)">Geen wijzigingen herkend. Probeer iets als:<br>"Grebbedijk 50 barriers week 10 tot 30 2025"</span>';
+  } else {
+    content.innerHTML = changes.map((c,i) =>
+      `<div style="margin-bottom:6px;padding:6px 0;${i>0?'border-top:1px solid var(--border)':''}">
+        ${formatChange(c)}
+      </div>`
+    ).join('');
+  }
+  preview.style.display = 'block';
+}
+
+// ── Import: parse + apply ──
+function importFromText(){
+  const raw = document.getElementById('importText').value.trim();
+  if(!raw){ showToast('Typ eerst een beschrijving.', 'error'); return; }
+
+  // Try JSON format first
+  try {
+    const json = JSON.parse(raw);
+    if(Array.isArray(json)){
+      json.forEach(c=>applyChange(c));
+      saveData();
+      render();
+      closeImportModal();
+      showToast(`${json.length} wijziging(en) geimporteerd!`);
+      return;
+    }
+  } catch(e){}
+
+  // Try pipe-delimited format: "Project | barriers | Wstart-year t/m Wend-year"
+  const pipeLines = raw.split('\n').filter(l=>l.includes('|'));
+  if(pipeLines.length > 0){
+    let count = 0;
+    for(const line of pipeLines){
+      const parts = line.split('|').map(s=>s.trim());
+      if(parts.length >= 3){
+        const project = parts[0];
+        const barriers = parseInt(parts[1]);
+        const range = parts[2].match(/W(\d+)-(\d{4})\s*t\/m\s*W(\d+)-(\d{4})/i);
+        if(range && !isNaN(barriers)){
+          applyChange({
+            project, barriers,
+            startWeek:parseInt(range[1]), startYear:parseInt(range[2]),
+            endWeek:parseInt(range[3]), endYear:parseInt(range[4]),
+          });
+          count++;
+        }
+      }
+    }
+    if(count > 0){
+      saveData(); render(); closeImportModal();
+      showToast(`${count} wijziging(en) geimporteerd!`);
+      return;
+    }
+  }
+
+  // ── Smart natural language parsing ──
+  const changes = parseNaturalText(raw);
+
+  if(changes.length > 0){
+    changes.forEach(c => {
+      applyChange(c);
+      pushToWebhook(c);
+    });
+    saveData();
+    render();
+    closeImportModal();
+    showToast(`${changes.length} wijziging(en) herkend en verwerkt!`);
+    // Reset preview
+    document.getElementById('aiPreview').style.display = 'none';
+  } else {
+    showToast('Kon geen wijzigingen herkennen. Gebruik de "Controleer" knop om te zien wat er herkend wordt.', 'error');
+  }
+}
+
+// ─── Export ───
+function exportData(){
+  const blob = new Blob([JSON.stringify(planData, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `bg800_planning_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Data geexporteerd als JSON');
+}
+
+// ─── Auto-PDF via URL parameter ───
+function checkAutoPDF(){
+  const params = new URLSearchParams(window.location.search);
+  if(params.get('auto') === 'pdf' || params.get('pdf') === '1'){
+    // Wacht op sync + render, dan PDF genereren
+    showToast('Dashboard laadt, PDF wordt zo gegenereerd...');
+    setTimeout(async () => {
+      await generatePDF();
+      // URL schoonmaken zodat herladen niet opnieuw triggert
+      window.history.replaceState({}, '', window.location.pathname);
+    }, 2500);
+  }
+}
+
+// ─── Init ───
+document.getElementById('updateTime').textContent = new Date().toLocaleString('nl-NL');
+checkUrlImport();
+render();
+startAutoSync(); // Start automatische sync met Make.com
+checkAutoPDF(); // Auto-PDF als ?auto=pdf in URL
+</script>
+</body>
+</html>
