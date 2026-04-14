@@ -883,7 +883,17 @@ function showToast(msg, type='success'){
 const COLORS = ['#16315B','#2563eb','#22c55e','#D97706','#8b5cf6','#06b6d4','#ec4899','#DC2626'];
 let chartInstance = null;
 
-// Plugin: draws a merged year-band below the x-axis labels, spanning each year's weeks
+// ISO week -> month (0-indexed) via Monday of ISO week
+const MONTHS_NL = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+function isoWeekToMonth(year, week){
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7; // 1..7 (Mon..Sun)
+  const mon = new Date(jan4);
+  mon.setUTCDate(jan4.getUTCDate() - jan4Day + 1 + (week - 1) * 7);
+  return mon.getUTCMonth(); // 0..11
+}
+
+// Plugin: draws month-band + merged year-band below the x-axis labels
 const yearBandPlugin = {
   id: 'yearBand',
   afterDraw(chart){
@@ -891,38 +901,83 @@ const yearBandPlugin = {
     if(!agg || !agg.length) return;
     const ctx = chart.ctx;
     const xScale = chart.scales.x;
-    const xAxisArea = chart.chartArea;
-    // y-position just below the x-axis tick labels
-    const yTop = xScale.bottom + 22;
-    const yBot = yTop + 18;
+    // Stack: tick-labels | month-band | year-band
+    const monthTop = xScale.bottom + 4;
+    const monthBot = monthTop + 14;
+    const yearTop  = monthBot + 2;
+    const yearBot  = yearTop + 16;
 
-    // Build contiguous year-groups from agg (so W-jumps within a year still belong to that year)
-    const groups = [];
+    const halfBar = (xScale.getPixelForValue(1) - xScale.getPixelForValue(0)) / 2;
+
+    // ── Month groups (contiguous same-month same-year) ──
+    const monthGroups = [];
     agg.forEach((w, i) => {
-      const last = groups[groups.length - 1];
+      const m = isoWeekToMonth(w.year, w.week);
+      const last = monthGroups[monthGroups.length - 1];
+      if(last && last.year === w.year && last.month === m) last.end = i;
+      else monthGroups.push({ year: w.year, month: m, start: i, end: i });
+    });
+
+    // ── Year groups ──
+    const yearGroups = [];
+    agg.forEach((w, i) => {
+      const last = yearGroups[yearGroups.length - 1];
       if(last && last.year === w.year) last.end = i;
-      else groups.push({ year: w.year, start: i, end: i });
+      else yearGroups.push({ year: w.year, start: i, end: i });
     });
 
     ctx.save();
-    ctx.font = '600 11px Jost';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    groups.forEach((g, gi) => {
+
+    // Month band
+    ctx.font = '500 9px Jost';
+    monthGroups.forEach((g, gi) => {
       const xL = xScale.getPixelForValue(g.start);
       const xR = xScale.getPixelForValue(g.end);
-      // Band background
-      ctx.fillStyle = gi % 2 === 0 ? '#F1F4F8' : '#E6EBF2';
-      ctx.fillRect(xL - (xScale.getPixelForValue(1) - xScale.getPixelForValue(0)) / 2, yTop, (xR - xL) + (xScale.getPixelForValue(1) - xScale.getPixelForValue(0)), yBot - yTop);
-      // Band text
-      ctx.fillStyle = '#16315B';
-      ctx.fillText(String(g.year), (xL + xR) / 2, (yTop + yBot) / 2);
+      ctx.fillStyle = gi % 2 === 0 ? '#F8FAFC' : '#EEF2F7';
+      ctx.fillRect(xL - halfBar, monthTop, (xR - xL) + halfBar * 2, monthBot - monthTop);
+      ctx.fillStyle = '#475569';
+      // Only draw label if band has enough pixel width
+      if((xR - xL) + halfBar * 2 >= 18){
+        ctx.fillText(MONTHS_NL[g.month], (xL + xR) / 2, (monthTop + monthBot) / 2);
+      }
     });
+
+    // Year band
+    ctx.font = '600 11px Jost';
+    yearGroups.forEach((g, gi) => {
+      const xL = xScale.getPixelForValue(g.start);
+      const xR = xScale.getPixelForValue(g.end);
+      ctx.fillStyle = gi % 2 === 0 ? '#E6EBF2' : '#D9E0EA';
+      ctx.fillRect(xL - halfBar, yearTop, (xR - xL) + halfBar * 2, yearBot - yearTop);
+      ctx.fillStyle = '#16315B';
+      ctx.fillText(String(g.year), (xL + xR) / 2, (yearTop + yearBot) / 2);
+    });
+
     ctx.restore();
   }
 };
 
-function renderChart(agg, projects){
+// Expand agg to include every week of each year that has at least one week of data
+// (so months without bezetting are still visible on the x-as)
+function expandAggWithEmptyWeeks(agg){
+  if(!agg.length) return agg;
+  const byKey = {};
+  agg.forEach(w => { byKey[`${w.year}-${w.week}`] = w; });
+  const years = [...new Set(agg.map(w => w.year))].sort();
+  const result = [];
+  years.forEach(year => {
+    for(let wk = 1; wk <= 52; wk++){
+      const key = `${year}-${wk}`;
+      result.push(byKey[key] || { year, week: wk, key, projects: {} });
+    }
+  });
+  return result;
+}
+
+function renderChart(aggIn, projects){
+  const agg = expandAggWithEmptyWeeks(aggIn);
   const labels = agg.map(w => `W${String(w.week).padStart(2,'0')}`);
 
   const datasets = projects.map((p,i)=>({
@@ -956,7 +1011,7 @@ function renderChart(agg, projects){
       responsive:true,
       maintainAspectRatio:false,
       interaction:{ intersect:false, mode:'index' },
-      layout:{ padding:{ bottom: 32 } },
+      layout:{ padding:{ bottom: 40 } },
       plugins:{
         legend:{ position:'top', align:'end', labels:{ boxWidth:10, padding:14, font:{size:11, family:'Jost'}, usePointStyle:true } },
         tooltip:{
