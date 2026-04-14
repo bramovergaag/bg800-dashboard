@@ -532,9 +532,6 @@
     </div>
   </div>
 
-  <!-- KPI Row -->
-  <div class="kpi-row" id="kpiRow"></div>
-
   <!-- Toolbar -->
   <div class="toolbar">
     <div class="toolbar-group">
@@ -569,30 +566,6 @@
       <div class="chart-wrapper">
         <canvas id="planningChart"></canvas>
       </div>
-    </div>
-  </div>
-
-  <!-- Table -->
-  <div class="card">
-    <div class="card-header">
-      <h2>Weekdetails</h2>
-      <span style="font-size:0.72rem;color:var(--text-muted)" id="rowCount"></span>
-    </div>
-    <div class="card-body" style="padding:0;overflow-x:auto;">
-      <table>
-        <thead>
-          <tr>
-            <th>Jaar</th>
-            <th>Week</th>
-            <th>Project</th>
-            <th style="text-align:right">Barriers</th>
-            <th style="text-align:right">Totaal</th>
-            <th style="text-align:right">Beschikbaar</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
     </div>
   </div>
 
@@ -911,12 +884,18 @@ const COLORS = ['#16315B','#2563eb','#22c55e','#D97706','#8b5cf6','#06b6d4','#ec
 let chartInstance = null;
 
 function renderChart(agg, projects){
-  const labels = agg.map(w=>{
-    const wk = String(w.week).padStart(2,'0');
-    return w.week===1||agg.indexOf(agg.find(a=>a.year===w.year&&a.week===w.week))===0
-      ? `${w.year} W${wk}`
-      : `W${wk}`;
+  const labels = agg.map((w, i) => {
+    const wk = String(w.week).padStart(2, '0');
+    const prev = i > 0 ? agg[i-1] : null;
+    const yearChanged = prev && prev.year !== w.year;
+    if(i === 0 || yearChanged || w.week === 1){
+      return [`W${wk}`, `${w.year}`];
+    }
+    return `W${wk}`;
   });
+
+  // detect year boundaries for visual separator
+  const yearBoundaries = agg.map((w, i) => i > 0 && agg[i-1].year !== w.year);
 
   const datasets = projects.map((p,i)=>({
     type:'bar',
@@ -1058,9 +1037,7 @@ function render(){
     pfil.appendChild(o);
   });
 
-  renderKPI(agg);
   renderChart(agg, projects);
-  renderTable(agg);
 }
 
 // ─── Modals ───
@@ -1121,40 +1098,16 @@ async function generatePDF(){
 
     y = 30;
 
-    // ── KPI samenvatting ──
     const data = getFilteredData();
-    const agg = aggregate(data);
     const projects = getProjects(data);
-    const totals = agg.map(w => Object.values(w.projects).reduce((s,v) => s+v, 0));
-    const maxInzet = Math.max(...totals, 0);
-    const wTekort = totals.filter(t => t > TOTAL_AVAILABLE).length;
-    const wVrij = totals.filter(t => t <= TOTAL_AVAILABLE).length;
-
-    pdf.setTextColor(22, 49, 91);
-    pdf.setFontSize(11);
-    pdf.setFont(undefined, 'bold');
-    pdf.text('Samenvatting', margin, y);
-    y += 6;
-
-    pdf.setFontSize(9);
-    pdf.setFont(undefined, 'normal');
-    pdf.setTextColor(60, 60, 60);
-    const kpis = [
-      `Maximale inzet: ${maxInzet} / ${TOTAL_AVAILABLE} barriers`,
-      `Weken met tekort: ${wTekort}`,
-      `Weken beschikbaar: ${wVrij}`,
-      `Actieve projecten: ${projects.length}`,
-    ];
-    kpis.forEach(kpi => { pdf.text(kpi, margin, y); y += 5; });
-    y += 4;
 
     // ── Grafiek als afbeelding ──
     const chartCanvas = document.getElementById('planningChart');
     if(chartCanvas){
       const chartImg = chartCanvas.toDataURL('image/png', 1.0);
-      const chartH = 70;
+      const chartH = 95;
       pdf.addImage(chartImg, 'PNG', margin, y, contentW, chartH);
-      y += chartH + 6;
+      y += chartH + 8;
     }
 
     // ── Projectoverzicht tabel ──
@@ -1204,20 +1157,6 @@ async function generatePDF(){
       pdf.line(margin, y + 2, margin + contentW, y + 2);
       y += 6;
     });
-
-    // ── Tekort weken ──
-    if(wTekort > 0){
-      y += 4;
-      if(y > pageH - 20) { pdf.addPage(); y = margin; }
-      pdf.setTextColor(220, 38, 38);
-      pdf.setFontSize(9);
-      pdf.setFont(undefined, 'bold');
-      const tekortWeken = agg
-        .filter(w => Object.values(w.projects).reduce((s,v) => s+v, 0) > TOTAL_AVAILABLE)
-        .map(w => `W${String(w.week).padStart(2,'0')}-${w.year}`)
-        .join(', ');
-      pdf.text(`LET OP — Tekort in weken: ${tekortWeken}`, margin, y);
-    }
 
     // ── Footer ──
     const totalPages = pdf.internal.getNumberOfPages();
