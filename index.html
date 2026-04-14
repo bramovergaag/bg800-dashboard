@@ -1406,18 +1406,15 @@ render();  // Render with local data immediately so user sees something
 updateSavedBadge();
 updateSyncBadge(null);
 
-// Fetch shared data (may override local). URL-import takes precedence.
+// Always fetch shared data first, then apply URL import on top if present.
 (async () => {
   const params = new URLSearchParams(window.location.search);
+  const result = await fetchSharedData();
+  if (!result.ok) {
+    console.debug('Shared data unavailable:', result.reason);
+  }
   if (params.get('import') || params.get('rawimport')) {
-    // URL import path — don't overwrite with shared data
     checkUrlImport();
-  } else {
-    const result = await fetchSharedData();
-    if (!result.ok) {
-      console.debug('Shared data unavailable:', result.reason);
-      // Fall through: local planData is already rendered
-    }
   }
   startAutoRefresh();
   checkAutoPDF();
