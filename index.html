@@ -91,6 +91,11 @@
       color: var(--navy);
       border-color: var(--yellow);
     }
+    .topbar-badge.synced {
+      background: rgba(34,197,94,0.2);
+      color: #86efac;
+      border-color: rgba(34,197,94,0.3);
+    }
 
     /* ── Accent bar ── */
     .accent-bar {
@@ -377,6 +382,7 @@
   </div>
   <div class="topbar-right">
     <span class="topbar-badge yellow">311 BESCHIKBAAR</span>
+    <span class="topbar-badge" id="syncBadge">Offline</span>
     <span class="topbar-badge" id="savedBadge">Laden…</span>
   </div>
 </header>
@@ -520,6 +526,9 @@
 const TOTAL_AVAILABLE = 311;
 const STORAGE_KEY     = 'bg800_plandata';
 const WEBHOOK_URL     = 'https://hook.eu1.make.com/vm8rpl1apx62oy796l8n4yabeztuxy8c';
+// Shared JSON file on GitHub Pages (same origin — no CORS). Cache-busting via ?t=timestamp.
+const SHARED_DATA_URL = './data.json';
+const REFRESH_MS      = 120000;  // 2 minutes
 const COLORS          = ['#16315B','#2563eb','#22c55e','#D97706','#8b5cf6','#06b6d4','#ec4899','#DC2626'];
 const MONTHS_NL       = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
 
@@ -1301,6 +1310,54 @@ async function pushToWebhook(changeOrArray) {
   }
 }
 
+// Fetch shared data.json from GitHub Pages (same-origin, no CORS).
+// data.json format: array of change objects
+//   [{"project":"X","barriers":50,"startWeek":10,"startYear":2025,"endWeek":30,"endYear":2025}, …]
+// Remote data is authoritative — applied fresh each refresh.
+async function fetchSharedData() {
+  try {
+    const resp = await fetch(SHARED_DATA_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    if (!resp.ok) return { ok: false, reason: `HTTP ${resp.status}` };
+    const changes = await resp.json();
+    if (!Array.isArray(changes)) return { ok: false, reason: 'not-array' };
+
+    // Rebuild planData from scratch using the shared change list
+    planData = [];
+    changes.forEach(c => {
+      if (c && c.project && c.barriers !== undefined &&
+          c.startWeek && c.startYear && c.endWeek && c.endYear) {
+        applyChange({
+          project:   c.project,
+          barriers:  parseInt(c.barriers),
+          startWeek: parseInt(c.startWeek),
+          startYear: parseInt(c.startYear),
+          endWeek:   parseInt(c.endWeek),
+          endYear:   parseInt(c.endYear),
+        });
+      }
+    });
+    saveData();
+    render();
+    updateSyncBadge(new Date());
+    return { ok: true, count: changes.length };
+  } catch(e) {
+    return { ok: false, reason: e.message };
+  }
+}
+
+function updateSyncBadge(date) {
+  const el = document.getElementById('syncBadge');
+  if (!el) return;
+  if (!date) { el.textContent = 'Offline'; el.classList.remove('synced'); return; }
+  const t = date.toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' });
+  el.textContent = 'Gesynchroniseerd ' + t;
+  el.classList.add('synced');
+}
+
+function startAutoRefresh() {
+  setInterval(() => { fetchSharedData(); }, REFRESH_MS);
+}
+
 // ═══════════════════════════════════════════
 // § 8  URL PARAMS & INIT
 // ═══════════════════════════════════════════
@@ -1356,10 +1413,26 @@ function checkAutoPDF() {
 // ── Boot ──
 document.getElementById('updateTime').textContent = new Date().toLocaleString('nl-NL');
 planData = loadData();
-checkUrlImport();
-render();
+render();  // Render with local data immediately so user sees something
 updateSavedBadge();
-checkAutoPDF();
+updateSyncBadge(null);
+
+// Fetch shared data (may override local). URL-import takes precedence.
+(async () => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('import') || params.get('rawimport')) {
+    // URL import path — don't overwrite with shared data
+    checkUrlImport();
+  } else {
+    const result = await fetchSharedData();
+    if (!result.ok) {
+      console.debug('Shared data unavailable:', result.reason);
+      // Fall through: local planData is already rendered
+    }
+  }
+  startAutoRefresh();
+  checkAutoPDF();
+})();
 </script>
 </body>
 </html>

@@ -1,0 +1,7 @@
+[
+  {"project":"Thorbeckeweg N516","barriers":90,"startWeek":1,"startYear":2025,"endWeek":20,"endYear":2025},
+  {"project":"Test N290","barriers":50,"startWeek":5,"startYear":2025,"endWeek":30,"endYear":2025},
+  {"project":"Grebbedijk","barriers":70,"startWeek":15,"startYear":2025,"endWeek":16,"endYear":2027},
+  {"project":"Nieuwe Waterweg","barriers":120,"startWeek":1,"startYear":2026,"endWeek":25,"endYear":2026},
+  {"project":"Thorbeckeweg N516","barriers":80,"startWeek":5,"startYear":2026,"endWeek":18,"endYear":2026}
+]
