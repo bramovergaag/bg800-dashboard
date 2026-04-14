@@ -865,9 +865,12 @@ function applyChange(c){
     const before = d.year<ye||(d.year===ye&&d.week<=we);
     return !(after&&before);
   });
-  wRange(c.startYear,c.startWeek,c.endYear,c.endWeek).forEach(r=>{
-    planData.push({...r, project:c.project, barriers:c.barriers});
-  });
+  // Skip adding zero-barrier records (removal case): filter above already wiped the range
+  if(c.barriers > 0){
+    wRange(c.startYear,c.startWeek,c.endYear,c.endWeek).forEach(r=>{
+      planData.push({...r, project:c.project, barriers:c.barriers});
+    });
+  }
 }
 
 // ─── Toast ───
@@ -1414,7 +1417,20 @@ function parseSentence(s){
 
   // ── Extract year(s) ──
   const years = [...lower.matchAll(/\b(202[4-9])\b/g)].map(m=>parseInt(m[1]));
-  if(!startYear && !endYear){
+  const isRemoval = barriers === 0 && /stop|verwijder|schrap|annuleer|cancel/i.test(lower);
+  const noExplicitRange = !startWeek && !endWeek && years.length === 0;
+
+  if(isRemoval && noExplicitRange){
+    // Full-wipe removal: cover entire existing range of the project across all years
+    const existing = planData.filter(d=>d.project.toLowerCase()===project.toLowerCase());
+    if(existing.length > 0){
+      const sorted = [...existing].sort((a,b)=>a.year!==b.year?a.year-b.year:a.week-b.week);
+      startYear = sorted[0].year;
+      startWeek = sorted[0].week;
+      endYear   = sorted[sorted.length-1].year;
+      endWeek   = sorted[sorted.length-1].week;
+    }
+  } else if(!startYear && !endYear){
     // If only one year mentioned, use it for both start and end
     if(years.length === 1){
       startYear = years[0];
