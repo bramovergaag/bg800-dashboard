@@ -1417,7 +1417,8 @@ function parseSentence(s){
 
   // ── Extract year(s) ──
   const years = [...lower.matchAll(/\b(202[4-9])\b/g)].map(m=>parseInt(m[1]));
-  const isRemoval = barriers === 0 && /stop|verwijder|schrap|annuleer|cancel/i.test(lower);
+  // Treat any barriers=0 message as a removal (with or without explicit keyword)
+  const isRemoval = barriers === 0;
   const noExplicitRange = !startWeek && !endWeek && years.length === 0;
 
   if(isRemoval && noExplicitRange){
