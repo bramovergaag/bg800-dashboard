@@ -23,7 +23,7 @@
       --warning:#D97706;
       --danger: #DC2626;
       --stripe: #f8fafc;
-      --chart-h:360px;
+      --chart-h:560px;
       --shadow: 0 1px 3px rgba(22,49,91,0.08);
     }
 
@@ -391,9 +391,6 @@
     </div>
   </div>
 
-  <!-- KPI -->
-  <div class="kpi-row" id="kpiRow"></div>
-
   <!-- Toolbar -->
   <div class="toolbar">
     <div class="toolbar-group">
@@ -426,29 +423,6 @@
     </div>
   </div>
 
-  <!-- Table card -->
-  <div class="card">
-    <div class="card-header">
-      <h2>Weekoverzicht</h2>
-      <span id="rowCount" class="row-count"></span>
-    </div>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Week</th>
-            <th>Jaar</th>
-            <th>Project</th>
-            <th>Barriers</th>
-            <th>Totaal week</th>
-            <th>Beschikbaar</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-    </div>
-  </div>
 </main>
 
 <!-- ── Footer ── -->
@@ -895,9 +869,7 @@ function render() {
 
   populateYearFilter();
   populateProjectFilter(projects);
-  renderKPI(agg);
   renderChart(agg, projects);
-  renderTable(agg);
 }
 
 function populateYearFilter() {
@@ -938,43 +910,55 @@ function populateProjectFilter(projects) {
   if (cur !== 'all' && projects.includes(cur)) sel.value = cur;
 }
 
-function renderKPI(agg) {
-  const totals   = agg.map(w => Object.values(w.projects).reduce((s,v) => s+v, 0));
-  const maxInzet = Math.max(...totals, 0);
-  const wTekort  = totals.filter(t => t > TOTAL_AVAILABLE).length;
-  const wVrij    = totals.filter(t => t <= TOTAL_AVAILABLE && t > 0).length;
-  const wPiek    = totals.filter(t => t > TOTAL_AVAILABLE * 0.8 && t <= TOTAL_AVAILABLE).length;
-  const nProj    = getProjects(planData).length;
+// Module-level reference so the yearBand plugin can safely read agg during afterDraw.
+// This avoids the old $agg timing bug: the plugin reads from a closure-backed module
+// variable that is always up-to-date before drawing begins.
+let _chartAgg = [];
 
-  const maxClass = maxInzet > TOTAL_AVAILABLE ? 'danger' : maxInzet > TOTAL_AVAILABLE * 0.8 ? 'warning' : 'success';
+// Plugin: draws a year band below the x-axis ticks
+const yearBandPlugin = {
+  id: 'yearBand',
+  afterDraw(chart) {
+    const agg = _chartAgg;
+    if (!agg || !agg.length) return;
+    const ctx    = chart.ctx;
+    const xScale = chart.scales.x;
+    if (!xScale) return;
 
-  document.getElementById('kpiRow').innerHTML = `
-    <div class="kpi-card ${maxClass}">
-      <div class="kpi-label">Maximale inzet</div>
-      <div class="kpi-value">${maxInzet}</div>
-      <div class="kpi-sub">van ${TOTAL_AVAILABLE} beschikbaar</div>
-    </div>
-    <div class="kpi-card ${wTekort > 0 ? 'danger' : 'success'}">
-      <div class="kpi-label">Weken tekort</div>
-      <div class="kpi-value">${wTekort}</div>
-      <div class="kpi-sub">inzet overschrijdt capaciteit</div>
-    </div>
-    <div class="kpi-card ${wPiek > 0 ? 'warning' : 'success'}">
-      <div class="kpi-label">Weken piekbelasting</div>
-      <div class="kpi-value">${wPiek}</div>
-      <div class="kpi-sub">&gt;80% bezetting (${Math.round(TOTAL_AVAILABLE*0.8)}+ barriers)</div>
-    </div>
-    <div class="kpi-card navy">
-      <div class="kpi-label">Actieve projecten</div>
-      <div class="kpi-value">${nProj}</div>
-      <div class="kpi-sub">${wVrij} weken voldoende ruimte</div>
-    </div>
-  `;
-}
+    const bandTop = xScale.bottom + 18;
+    const bandBot = bandTop + 20;
+    const halfBar = (xScale.getPixelForValue(1) - xScale.getPixelForValue(0)) / 2;
+
+    // Group contiguous same-year weeks
+    const groups = [];
+    agg.forEach((w, i) => {
+      const last = groups[groups.length - 1];
+      if (last && last.year === w.year) last.end = i;
+      else groups.push({ year: w.year, start: i, end: i });
+    });
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 12px Jost';
+
+    groups.forEach((g, gi) => {
+      const xL = xScale.getPixelForValue(g.start);
+      const xR = xScale.getPixelForValue(g.end);
+      ctx.fillStyle = gi % 2 === 0 ? '#16315B' : '#2563eb';
+      ctx.fillRect(xL - halfBar, bandTop, (xR - xL) + halfBar * 2, bandBot - bandTop);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(String(g.year), (xL + xR) / 2, (bandTop + bandBot) / 2);
+    });
+
+    ctx.restore();
+  }
+};
 
 function renderChart(aggIn, projects) {
   // Expand to full-year grid so empty weeks remain visible
   const agg    = expandAggWithEmptyWeeks(aggIn);
+  _chartAgg    = agg;  // set BEFORE new Chart() so afterDraw sees it
   const labels = agg.map(w => `W${String(w.week).padStart(2,'0')}`);
 
   const datasets = projects.map((p, i) => ({
@@ -1003,10 +987,12 @@ function renderChart(aggIn, projects) {
 
   chartInstance = new Chart(document.getElementById('planningChart'), {
     data: { labels, datasets },
+    plugins: [yearBandPlugin],
     options: {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { intersect: false, mode: 'index' },
+      layout: { padding: { bottom: 48 } },
       plugins: {
         legend: {
           position: 'top', align: 'end',
@@ -1054,45 +1040,6 @@ function renderChart(aggIn, projects) {
   const years = [...new Set(agg.map(w => w.year))];
   document.getElementById('chartSubtitle').textContent =
     years.length ? years.join(' · ') + ` — ${agg.filter(w => Object.keys(w.projects).length > 0).length} actieve weken` : '';
-}
-
-function renderTable(agg) {
-  const tbody = document.getElementById('tableBody');
-  tbody.innerHTML = '';
-  let rowCount = 0;
-
-  agg.forEach(w => {
-    const tot   = Object.values(w.projects).reduce((s,v) => s+v, 0);
-    const avail = TOTAL_AVAILABLE - tot;
-    if (tot === 0) return; // skip empty weeks
-
-    const entries = Object.entries(w.projects);
-    const badge = avail < 0
-      ? `<span class="badge badge-red">Tekort ${avail}</span>`
-      : avail < 50
-        ? `<span class="badge badge-orange">Krap +${avail}</span>`
-        : `<span class="badge badge-green">OK +${avail}</span>`;
-
-    const rowClass = avail < 0 ? 'row-danger' : avail < 50 ? 'row-warning' : '';
-
-    entries.forEach(([ proj, bars ], idx) => {
-      const tr = document.createElement('tr');
-      if (rowClass) tr.className = rowClass;
-      tr.innerHTML = `
-        <td>${idx === 0 ? `<strong>W${String(w.week).padStart(2,'0')}</strong>` : ''}</td>
-        <td>${idx === 0 ? w.year : ''}</td>
-        <td>${proj}</td>
-        <td>${bars}</td>
-        <td>${idx === 0 ? `<strong>${tot}</strong>` : ''}</td>
-        <td>${idx === 0 ? avail : ''}</td>
-        <td>${idx === 0 ? badge : ''}</td>
-      `;
-      tbody.appendChild(tr);
-      rowCount++;
-    });
-  });
-
-  document.getElementById('rowCount').textContent = `${rowCount} rijen`;
 }
 
 // ═══════════════════════════════════════════
