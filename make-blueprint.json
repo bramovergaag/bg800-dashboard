@@ -1,0 +1,104 @@
+{
+  "name": "BG800 WhatsApp Barrierplanning",
+  "flow": [
+    {
+      "id": 1,
+      "module": "app#2chat:whatsAppGroupMessageReceived",
+      "version": 1,
+      "parameters": {
+        "__IMTCONN__": 6557708
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0 },
+        "restore": {},
+        "expect": [
+          { "name": "groupId", "type": "text", "label": "Group ID" }
+        ]
+      },
+      "filter": {
+        "name": "Alleen BG800 groep",
+        "conditions": [
+          [
+            {
+              "a": "{{1.groupId}}",
+              "b": "JOUW_GROEP_ID_HIER",
+              "o": "text:equal"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "module": "regexp:Match",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "pattern": "(?:(verwijder|stop|schrap|annuleer|cancel)\\s+)?([A-Z][a-zA-Z0-9\\s]*?)\\s+(\\d+)\\s*(?:barriers?|stuks?)(?:.*?w(?:ee)?k?\\s*(\\d{1,2})(?:\\s+(202[4-9]))?\\s*(?:tot|t\\/m|tm|-|\u2013)\\s*(?:w(?:ee)?k?\\s*)?(\\d{1,2})(?:\\s+(202[4-9]))?)?",
+        "text": "{{1.message}}",
+        "global": false,
+        "ignorecase": true,
+        "multiline": false,
+        "singleline": false
+      },
+      "metadata": {
+        "designer": { "x": 300, "y": 0 }
+      }
+    },
+    {
+      "id": 3,
+      "module": "datastore:addRecord",
+      "version": 1,
+      "parameters": {
+        "datastore": 113253
+      },
+      "mapper": {
+        "project": "{{2.match[2]}}",
+        "barriers": "{{2.match[3]}}",
+        "startWeek": "{{ifempty(2.match[4]; \"1\")}}",
+        "endWeek": "{{ifempty(2.match[6]; \"52\")}}",
+        "startYear": "{{ifempty(2.match[5]; ifempty(2.match[7]; formatDate(now; \"YYYY\")))}}",
+        "endYear": "{{ifempty(2.match[7]; ifempty(2.match[5]; formatDate(now; \"YYYY\")))}}",
+        "action": "{{ifempty(2.match[1]; \"set\")}}",
+        "rawMessage": "{{1.message}}",
+        "sender": "{{1.senderName}}",
+        "receivedAt": "{{formatDate(now; \"YYYY-MM-DD HH:mm\")}}"
+      },
+      "metadata": {
+        "designer": { "x": 600, "y": 0 }
+      }
+    },
+    {
+      "id": 4,
+      "module": "app#2chat:sendWhatsAppGroupTextMessage",
+      "version": 1,
+      "parameters": {
+        "__IMTCONN__": 6557708
+      },
+      "mapper": {
+        "groupId": "{{1.groupId}}",
+        "text": "✅ Verwerkt: {{2.match[2]}} - {{2.match[3]}} Barriers{{if(2.match[4]; \"\\nVan: week \" + 2.match[4] + \" \" + ifempty(2.match[5]; ifempty(2.match[7]; formatDate(now; \"YYYY\"))); \"\")}}{{if(2.match[6]; \"\\nT/m: week \" + 2.match[6] + \" \" + ifempty(2.match[7]; ifempty(2.match[5]; formatDate(now; \"YYYY\"))); \"\")}}{{if(2.match[1]; \"\\n(verwijderen)\"; \"\")}}\n\n📄 Download PDF:\nhttps://bramovergaag.github.io/bg800-dashboard/?rawimport={{base64(1.message)}}&auto=pdf"
+      },
+      "metadata": {
+        "designer": { "x": 900, "y": 0 }
+      }
+    }
+  ],
+  "metadata": {
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false
+    },
+    "designer": {
+      "orphans": []
+    }
+  }
+}
