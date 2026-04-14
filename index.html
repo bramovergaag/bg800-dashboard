@@ -655,7 +655,7 @@ const SYNC_INTERVAL = 300000; // Check elke 5 minuten
 const DEFAULT_DATA = [
   ...wRange(2025,1,2025,20).map(r=>({...r, project:'Thorbeckeweg N516', barriers:90})),
   ...wRange(2025,5,2025,30).map(r=>({...r, project:'Test N290', barriers:50})),
-  ...wRange(2025,15,2025,40).map(r=>({...r, project:'Grebbedijk', barriers:70})),
+  ...wRange(2025,15,2027,16).map(r=>({...r, project:'Grebbedijk', barriers:70})),
   ...wRange(2026,1,2026,25).map(r=>({...r, project:'Nieuwe Waterweg', barriers:120})),
   ...wRange(2026,5,2026,18).map(r=>({...r, project:'Thorbeckeweg N516', barriers:80})),
 ];
@@ -1371,20 +1371,14 @@ function parseSentence(s){
   let startWeek=null, endWeek=null, startYear=null, endYear=null;
   const currentYear = new Date().getFullYear();
 
-  // Pattern: "week 10 tot 30" / "w10-w30" / "wk10 t/m wk30"
-  const weekRange = lower.match(/w(?:ee)?k?\s*(\d{1,2})\s*(?:tot|t\/m|tm|-|–)\s*(?:w(?:ee)?k?\s*)?(\d{1,2})/i);
-  if(weekRange){
-    startWeek = parseInt(weekRange[1]);
-    endWeek = parseInt(weekRange[2]);
-  }
-
-  // Pattern: "W10-2025 t/m W30-2025" (structured)
-  const structRange = lower.match(/w(\d{1,2})\s*[-.]?\s*(\d{4})\s*(?:tot|t\/m|tm|-|–)\s*w(\d{1,2})\s*[-.]?\s*(\d{4})/i);
-  if(structRange){
-    startWeek = parseInt(structRange[1]);
-    startYear = parseInt(structRange[2]);
-    endWeek = parseInt(structRange[3]);
-    endYear = parseInt(structRange[4]);
+  // Pattern: "week 40 2025 tot week 16 2027" / "W40-2025 t/m W16-2027"
+  // Supports optional year between week and connector (cross-year ranges)
+  const weekRangeWithYears = lower.match(/w(?:ee)?k?\s*(\d{1,2})\s*[-.]?\s*(202[4-9])?\s*(?:tot|t\/m|tm|-|–)\s*(?:w(?:ee)?k?\s*)?(\d{1,2})\s*[-.]?\s*(202[4-9])?/i);
+  if(weekRangeWithYears){
+    startWeek = parseInt(weekRangeWithYears[1]);
+    if(weekRangeWithYears[2]) startYear = parseInt(weekRangeWithYears[2]);
+    endWeek = parseInt(weekRangeWithYears[3]);
+    if(weekRangeWithYears[4]) endYear = parseInt(weekRangeWithYears[4]);
   }
 
   // Pattern: "van januari tot juni" (months)
