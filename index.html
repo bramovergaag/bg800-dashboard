@@ -884,18 +884,10 @@ const COLORS = ['#16315B','#2563eb','#22c55e','#D97706','#8b5cf6','#06b6d4','#ec
 let chartInstance = null;
 
 function renderChart(agg, projects){
-  const labels = agg.map((w, i) => {
+  const labels = agg.map((w) => {
     const wk = String(w.week).padStart(2, '0');
-    const prev = i > 0 ? agg[i-1] : null;
-    const yearChanged = prev && prev.year !== w.year;
-    if(i === 0 || yearChanged || w.week === 1){
-      return [`W${wk}`, `${w.year}`];
-    }
-    return `W${wk}`;
+    return [`W${wk}`, `${w.year}`];
   });
-
-  // detect year boundaries for visual separator
-  const yearBoundaries = agg.map((w, i) => i > 0 && agg[i-1].year !== w.year);
 
   const datasets = projects.map((p,i)=>({
     type:'bar',
