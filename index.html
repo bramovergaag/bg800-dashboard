@@ -965,6 +965,11 @@ function renderChart(agg, projects){
           padding:12,
           cornerRadius:6,
           callbacks:{
+            title(items){
+              if(!items.length) return '';
+              const w = agg[items[0].dataIndex];
+              return w ? `Week ${String(w.week).padStart(2,'0')} — ${w.year}` : items[0].label;
+            },
             footer(items){
               const sum=items.filter(i=>i.dataset.type==='bar').reduce((s,i)=>s+i.parsed.y,0);
               const avail=TOTAL_AVAILABLE-sum;
