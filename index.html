@@ -884,9 +884,15 @@ const COLORS = ['#16315B','#2563eb','#22c55e','#D97706','#8b5cf6','#06b6d4','#ec
 let chartInstance = null;
 
 function renderChart(agg, projects){
+  // Year shown only once per year (on the first week of each year-group in the data)
+  const seenYears = new Set();
   const labels = agg.map((w) => {
     const wk = String(w.week).padStart(2, '0');
-    return [`W${wk}`, `${w.year}`];
+    if(!seenYears.has(w.year)){
+      seenYears.add(w.year);
+      return [`W${wk}`, `${w.year}`];
+    }
+    return `W${wk}`;
   });
 
   const datasets = projects.map((p,i)=>({
