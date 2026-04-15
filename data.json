@@ -56,4 +56,8 @@
 
 ,{"project":"Grebbedijk","barriers":80,"startWeek":10,"startYear":2026,"endWeek":20,"endYear":2026}
 
+,{"project":"Thorbeckeweg N516","barriers":0,"startWeek":5,"startYear":2026,"endWeek":18,"endYear":2026}
+
+,{"project":"Grebbedijk","barriers":0,"startWeek":10,"startYear":2026,"endWeek":20,"endYear":2026}
+
 ]
