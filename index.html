@@ -516,8 +516,8 @@
 const TOTAL_AVAILABLE = 311;
 const STORAGE_KEY     = 'bg800_plandata';
 const WEBHOOK_URL     = 'https://hook.eu1.make.com/vm8rpl1apx62oy796l8n4yabeztuxy8c';
-// Shared JSON file on GitHub Pages (same origin — no CORS). Cache-busting via ?t=timestamp.
-const SHARED_DATA_URL = './data.json';
+// Raw GitHub — bypasst Pages CDN. Geen caching issues.
+const SHARED_DATA_URL = 'https://raw.githubusercontent.com/bramovergaag/bg800-dashboard/main/data.json';
 const REFRESH_MS      = 120000;  // 2 minutes
 const COLORS          = ['#16315B','#2563eb','#22c55e','#D97706','#8b5cf6','#06b6d4','#ec4899','#DC2626'];
 const MONTHS_NL       = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
