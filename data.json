@@ -60,6 +60,10 @@
 
 ,{"project":"Grebbedijk","barriers":0,"startWeek":10,"startYear":2026,"endWeek":20,"endYear":2026}
 
-,{"project":"A2","barriers":100,"startWeek":20,"startYear":2026,"endWeek":45,"endYear":}
+,{"project":"A2","barriers":100,"startWeek":20,"startYear":2026,"endWeek":45,"endYear":2026}
+
+,{"project":"A2","barriers":100,"startWeek":20,"startYear":2026,"endWeek":45,"endYear":2026}
+
+,{"project":"A2","barriers":100,"startWeek":20,"startYear":2026,"endWeek":45,"endYear":2026}
 
 ]
