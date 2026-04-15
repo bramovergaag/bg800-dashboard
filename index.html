@@ -1401,17 +1401,18 @@ function checkAutoPDF() {
 }
 
 // ── Boot ──
-planData = loadData();
-render();  // Render with local data immediately so user sees something
+// Server is authoritative: wipe localStorage, fetch data.json, then apply URL imports.
+localStorage.removeItem(STORAGE_KEY);
+planData = [];
 updateSavedBadge();
 updateSyncBadge(null);
 
-// Always fetch shared data first, then apply URL import on top if present.
 (async () => {
   const params = new URLSearchParams(window.location.search);
   const result = await fetchSharedData();
   if (!result.ok) {
     console.debug('Shared data unavailable:', result.reason);
+    render();  // Render empty state if fetch failed
   }
   if (params.get('import') || params.get('rawimport')) {
     checkUrlImport();
