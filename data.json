@@ -66,4 +66,6 @@
 
 ,{"project":"A2","barriers":100,"startWeek":20,"startYear":2026,"endWeek":45,"endYear":2026}
 
+,{"project":"Grebbedijk","barriers":100,"startWeek":30,"startYear":2026,"endWeek":45,"endYear":2026}
+
 ]
